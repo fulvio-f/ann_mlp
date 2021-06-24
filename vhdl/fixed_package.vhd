@@ -16,8 +16,8 @@ PACKAGE fixed_package IS
             min_range: fixed_range := 0) RETURN FIXED;
     FUNCTION to_integer (arg_L: fixed) RETURN INTEGER;
     FUNCTION "+"(arg_L, arg_R: fixed) RETURN FIXED;
-	 FUNCTION "+"(arg_L: INTEGER; arg_R: FIXED) RETURN FIXED;
-	 FUNCTION "+"(arg_L: fixed; arg_R: INTEGER) RETURN INTEGER;
+    FUNCTION "+"(arg_L: INTEGER; arg_R: FIXED) RETURN FIXED;
+    FUNCTION "+"(arg_L: fixed; arg_R: INTEGER) RETURN INTEGER;
     FUNCTION "-"(arg_L, arg_R: fixed) RETURN FIXED;
 
 END fixed_package;
