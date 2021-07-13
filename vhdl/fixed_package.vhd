@@ -19,6 +19,12 @@ PACKAGE fixed_package IS
     FUNCTION "+"(arg_L: INTEGER; arg_R: FIXED) RETURN FIXED;
     FUNCTION "+"(arg_L: fixed; arg_R: INTEGER) RETURN INTEGER;
     FUNCTION "-"(arg_L, arg_R: fixed) RETURN FIXED;
+    FUNCTION "+"(arg_L: FIXED; arg_R: REAL) RETURN FIXED;
+    FUNCTION "+"(arg_L: REAL; arg_R: FIXED) RETURN FIXED;
+    FUNCTION "-"(arg_L: FIXED; arg_R: REAL) RETURN FIXED;
+    FUNCTION "-"(arg_L: REAL; arg_R: FIXED) RETURN FIXED;
+    FUNCTION "*"(arg_L: FIXED, arg_R: REAL) RETURN FIXED;
+    FUNCTION "*"(arg_L: REAL, arg_R: FIXED) RETURN FIXED;
 
 END fixed_package;
 
@@ -280,5 +286,63 @@ PACKAGE BODY fixed_package IS
 		subtracao := arg_L - inteiro;
 		RETURN subtracao;
 	END "-";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na soma de ponto fixo e real
+
+	FUNCTION "+"(arg_L: FIXED; arg_R: REAL) RETURN FIXED IS
+		VARIABLE soma, arg_R_fixed : FIXED;
+	BEGIN
+		arg_R_fixed := to_fixed(arg_R, arg_L'HIGH, arg_L'LOW);
+		soma := arg_L + arg_R_fixed;
+		RETURN soma;
+	END "+";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na soma de real e ponto fixo
+	
+	FUNCTION "+"(arg_L: REAL; arg_R: FIXED) RETURN FIXED IS
+		VARIABLE soma, arg_L_fixed : FIXED;
+	BEGIN
+		arg_L_fixed := to_fixed(arg_L, arg_R'HIGH, arg_R'LOW);
+		soma := arg_L_fixed + arg_R;
+		RETURN soma;
+	END "+";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na subtracao de ponto fixo e real
+
+	FUNCTION "-"(arg_L: FIXED; arg_R: REAL) RETURN FIXED IS
+		VARIABLE subtracao, arg_R_fixed : FIXED;
+	BEGIN
+		arg_R_fixed := to_fixed(arg_R, arg_L'HIGH, arg_L'LOW);
+		subtracao := arg_L - arg_R_fixed;
+		RETURN subtracao;
+	END "-";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na subtracao de real e ponto fixo
+	
+	FUNCTION "-"(arg_L: REAL; arg_R: FIXED) RETURN FIXED IS
+		VARIABLE subtracao, arg_L_fixed : FIXED;
+	BEGIN
+		arg_L_fixed := to_fixed(arg_L, arg_R'HIGH, arg_R'LOW);
+		subtracao := arg_L_fixed - arg_R;
+		RETURN subtracao;
+	END "-";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na multiplicacao de ponto fixo e real			   
+	FUNCTION "*"(arg_L: fixed, arg_R: real) RETURN FIXED IS
+		VARIABLE produto, arg_R_fixed : FIXED;
+	BEGIN
+		arg_R_fixed := to_fixed(arg_R, arg_L'HIGH, arg_L'LOW);
+		produto := MULT_FIXED(arg_L,arg_R_fixed);
+		RETURN produto;
+	END "*";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na multiplicacao de real e ponto fixo
+	FUNCTION "*"(arg_L: real, arg_R: fixed) RETURN FIXED IS
+		VARIABLE produto, arg_L_fixed : FIXED;
+	BEGIN
+		arg_L_fixed := to_fixed(arg_L, arg_R'HIGH, arg_R'LOW);
+		produto := MULT_FIXED(arg_L_fixed,arg_R);
+		RETURN produto;
+	END "*";
 --------------------------------------------------------------
 END fixed_package;
