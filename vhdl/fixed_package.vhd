@@ -19,7 +19,9 @@ PACKAGE fixed_package IS
     FUNCTION "+"(arg_L: INTEGER; arg_R: FIXED) RETURN FIXED;
     FUNCTION "+"(arg_L: fixed; arg_R: INTEGER) RETURN INTEGER;
     FUNCTION "-"(arg_L, arg_R: fixed) RETURN FIXED;
-    FUNCTION "*"(arg_L, arg_R: FIXED) RETURN FIXED
+    FUNCTION "*"(arg_L, arg_R: FIXED) RETURN FIXED;
+    FUNCTION to_fixed(arg_L:REAL; max_range, min_range:fixed_range) RETURN FIXED;
+    FUNCTION to_real (arg_L:FIXED) RETURN real;
     FUNCTION "+"(arg_L: FIXED; arg_R: REAL) RETURN FIXED;
     FUNCTION "+"(arg_L: REAL; arg_R: FIXED) RETURN FIXED;
     FUNCTION "-"(arg_L: FIXED; arg_R: REAL) RETURN FIXED;
@@ -333,7 +335,7 @@ PACKAGE BODY fixed_package IS
 --------------------------------------------------------------
 	-- Transforma real em fixed
 
-	FUNCTION to_fixed(arg_L:REAL;max_range,min_range:fixed_range) RETURN FIXED;
+	FUNCTION to_fixed(arg_L:REAL;max_range,min_range:fixed_range) RETURN FIXED IS
 
 		VARIABLE arg_fixed : FIXED;
 		VARIABLE arg_int : REAL;
@@ -388,7 +390,7 @@ PACKAGE BODY fixed_package IS
 --------------------------------------------------------------
 	-- Transforma fixed em real
 										      
-	FUNCTION to_real (arg_L:FIXED) RETURN real;
+	FUNCTION to_real (arg_L:FIXED) RETURN real IS
 
 		VARIABLE arg_real : REAL := 0;
 
