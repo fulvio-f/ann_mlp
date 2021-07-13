@@ -19,6 +19,7 @@ PACKAGE fixed_package IS
     FUNCTION "+"(arg_L: INTEGER; arg_R: FIXED) RETURN FIXED;
     FUNCTION "+"(arg_L: fixed; arg_R: INTEGER) RETURN INTEGER;
     FUNCTION "-"(arg_L, arg_R: fixed) RETURN FIXED;
+    FUNCTION "*"(arg_L, arg_R: FIXED) RETURN FIXED
     FUNCTION "+"(arg_L: FIXED; arg_R: REAL) RETURN FIXED;
     FUNCTION "+"(arg_L: REAL; arg_R: FIXED) RETURN FIXED;
     FUNCTION "-"(arg_L: FIXED; arg_R: REAL) RETURN FIXED;
@@ -246,46 +247,89 @@ PACKAGE BODY fixed_package IS
 	-- Retorna ponto fixo na soma de ponto fixo e inteiro
 
 	FUNCTION "+"(arg_L: FIXED; arg_R: INTEGER) RETURN FIXED IS
-		VARIABLE soma : FIXED;
-		VARIABLE inteiro : INTEGER;
+		VARIABLE soma,arg_R_fixed : FIXED;
 	BEGIN
-		inteiro := to_integer(arg_L);
-		subtracao := inteiro + arg_R;
+		arg_R_fixed := to_fixed(arg_R, arg_L'HIGH, arg_L'LOW);
+		soma := arg_L + arg_R_fixed;
 		RETURN soma;
 	END "+";
 --------------------------------------------------------------
 	-- Retorna ponto fixo na soma de inteiro e ponto fixo
 	
 	FUNCTION "+"(arg_L: INTEGER; arg_R: FIXED) RETURN FIXED IS
-		VARIABLE soma : FIXED;
+		VARIABLE soma,arg_L_fixed : FIXED;
 		VARIABLE inteiro : INTEGER;
 	BEGIN
-		inteiro := to_integer(arg_R);
-		soma := arg_L + inteiro;
+		arg_L_fixed := to_fixed(arg_L, arg_R'HIGH, arg_R'LOW);
+		soma := arg_L_fixed + arg_R;
 		RETURN soma;
 	END "+";
 --------------------------------------------------------------
 	-- Retorna ponto fixo na subtracao de ponto fixo e inteiro
 
 	FUNCTION "-"(arg_L: FIXED; arg_R: INTEGER) RETURN FIXED IS
-		VARIABLE subtracao : FIXED;
-		VARIABLE inteiro : INTEGER;
+		VARIABLE subtracao,arg_R_fixed : FIXED;
 	BEGIN
-		inteiro := to_integer(arg_L);
-		subtracao := inteiro - arg_R;
+		arg_R_fixed := to_fixed(arg_R, arg_L'HIGH, arg_L'LOW);
+		subtracao := arg_L - arg_R_fixed;
 		RETURN subtracao;
 	END "-";
 --------------------------------------------------------------
 	-- Retorna ponto fixo na subtracao de inteiro e ponto fixo
 	
 	FUNCTION "-"(arg_L: INTEGER; arg_R: FIXED) RETURN FIXED IS
-		VARIABLE subtracao : FIXED;
-		VARIABLE inteiro : INTEGER;
+		VARIABLE subtracao,arg_L_fixed : FIXED;
 	BEGIN
-		inteiro := to_integer(arg_R);
-		subtracao := arg_L - inteiro;
+		arg_L_fixed := to_fixed(arg_L, arg_R'HIGH, arg_R'LOW);
+		subtracao := arg_L_fixed - arg_R;
 		RETURN subtracao;
 	END "-";
+--------------------------------------------------------------
+	-- Retorna a multiplicação de dois pontos fixos
+
+	FUNCTION "*"(arg_L, arg_R: FIXED) RETURN FIXED IS                        
+
+		VARIABLE arg_L_ext : FIXED (2*arg_L'length-2 DOWNTO 0);   --Cria um vetor extendido     
+		VARIABLE arg_R_ext : FIXED (2*arg_R'length-2 DOWNTO 0);   --Cria um vetor extendido 
+		
+		VARIABLE Resultado,Mult,Comp1,Comp2,Comp3 : FIXED;
+			
+	BEGIN
+		arg_R_ext(arg_R'length-1 DOWNTO 0) := arg_R;                                   
+		arg_R_ext(arg_R_ext'length-1 DOWNTO arg_R'length) := (OTHERS => arg_R(arg_R'high));    --O restante do vetor extendido copia o valor do MSB do vetor inicial
+		arg_L_ext(arg_L'length-1 DOWNTO 0) := arg_L;
+		arg_L_ext(arg_L_ext'length-1 DOWNTO arg_L'length) := (OTHERS => arg_L(arg_L'high));    --O restante do vetor extendido copia o valor do MSB do vetor inicial
+
+		IF arg_L(arg_L'high)= '0' AND arg_R(arg_R'high) = '1' THEN   --argL < 0 e arg_R >0
+		
+			Comp1 := COMP1_FIXED(arg_R_ext);
+			Comp2 := ADD_SUB('0', Comp1, 1);     --faz o complemento de 2
+			Mult := MULT_FIXED(arg_L_ext,Comp2);
+			Resultado = ADD_SUB('0', Mult, 1);	--faz o complemento de 2 da multiplicação para obter o resultado final
+		
+		ELSIF arg_L(arg_L'high)= '1' AND arg_R(arg_R'high) = '0' THEN   --argL > 0 e arg_R < 0
+		
+			Comp1 := COMP1_FIXED(arg_L_ext);
+			Comp2 := ADD_SUB('0', Comp1, 1);     --faz o complemento de 2
+			Mult := MULT_FIXED(arg_R_ext,Comp2);
+			Resultado := ADD_SUB('0', Mult, 1); --faz o complemento de 2 da multiplicação para obter o resultado final
+		
+		ELSIF arg_L(arg_L'high)= '1' AND arg_R(arg_R'high) = '1' THEN   --argL < 0 e arg_R < 0
+		
+			Comp1 := COMP1_FIXED(arg_L_ext);
+			Comp2 := ADD_SUB('0', Comp1, 1);   --faz o complemento de 2 de arg_L
+			Comp1 := COMP1_FIXED(arg_R_ext);
+			Comp3 := ADD_SUB('0', Comp1, 1);   --faz o complemento de 2 de arg_R
+			Resultado := MULT_FIXED(Comp3,Comp2);
+			
+		ELSE   --argL > 0 e arg_R > 0
+			
+			resultado := MULT_FIXED(arg_R_ext,arg_L_ext);
+		
+		END IF;
+
+		RETURN resultado;
+      END "*";
 --------------------------------------------------------------
 	-- Retorna ponto fixo na soma de ponto fixo e real
 
