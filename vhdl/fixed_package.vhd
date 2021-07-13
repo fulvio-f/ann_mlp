@@ -331,6 +331,95 @@ PACKAGE BODY fixed_package IS
 		RETURN resultado;
       END "*";
 --------------------------------------------------------------
+	-- Transforma real em fixed
+
+	FUNCTION to_fixed(arg_L:REAL;max_range,min_range:fixed_range) RETURN FIXED;
+
+		VARIABLE arg_fixed : FIXED;
+		VARIABLE arg_int : REAL;
+		VARIABLE arg_dec : REAL;
+
+	BEGIN
+
+		IF abs(arg_L) < 2**(min_range) THEN
+			arg_fixed := OTHERS => '0';
+
+		ELSIF arg_L >= 2**(max_range) THEN;
+			arg_fixed := (max_range-1)=>('0', OTHERS => '1');
+
+		ELSIF arg_L <= -2**(max_range) THEN;
+			arg_fixed := (max_range-1)=>('1', OTHERS => '0');
+
+		ELSIF 2**min_range <= abs(arg_L) <2**(max_range) THEN
+
+			arg_int := arg_L mod 1;
+			arg_dec := arg_L - arg_int;
+
+			inteiro:FOR i IN max_range'left-1 DOWNTO 0 LOOP
+				IF arg_int mod (2.0**i) >= 0 THEN
+					arg_fixed(i) := '1';
+					arg_int := arg_int - 2.0**i;
+				ELSE
+					arg_fixed(i) := '0';
+				END IF;
+			END LOOP inteiro;
+
+
+			decimal:FOR i IN 0 TO min_range'right LOOP
+				IF arg_dec mod (2.0**i) >= 0 AND arg_dec > 0.00001 THEN
+					arg_fixed(i) := '1';
+					arg_dec := arg_dec - 2**i;
+				ELSE
+					arg_fixed(i) := '0';
+				END IF;
+			END LOOP decimal;
+		END IF;
+
+		IF arg_L > 0 THEN
+			arg_fixed(max_range) := 0
+
+		ELSE
+			arg_fixed(max_range) := 1
+		END IF;
+
+		RETURN arg_fixed
+	END to_fixed;
+
+--------------------------------------------------------------
+	-- Transforma fixed em real
+										      
+	FUNCTION to_real (arg_L:FIXED) RETURN real;
+
+		VARIABLE arg_real : REAL := 0;
+
+		VARIABLE arg_L_fim : FIXED;
+
+	BEGIN
+
+		IF arg_L'HIGH = '1' THEN	--Número é negativo
+
+			Comp1 := COMP1_FIXED(arg_L);	--faz o complemento de 1
+			arg_L_fim := ADD_SUB('0', Comp1, 1);	--faz o complemento de 2
+
+			FOR i IN arg_L_fim'RANGE-1 LOOP
+			IF (arg_L(i) = '1') THEN
+				arg_real := arg_real - (2.0**i);
+			END IF;
+			END LOOP;
+
+		ELSE		--Sem bit de sinal, entao é positivo
+
+			FOR i IN arg_L'RANGE-1 LOOP
+			IF (arg_L(i) = '1') THEN
+				arg_real := arg_real + (2.0**i);
+			END IF;
+			END LOOP;
+
+		END IF;
+
+		RETURN arg_real;
+	END to_real;						       
+-------------------------------------------------------------- 
 	-- Retorna ponto fixo na soma de ponto fixo e real
 
 	FUNCTION "+"(arg_L: FIXED; arg_R: REAL) RETURN FIXED IS
