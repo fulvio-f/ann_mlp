@@ -32,12 +32,12 @@ PACKAGE fixed_package IS
 
 END fixed_package;
 
---Corpo do pacote
+-- Corpo do pacote
 PACKAGE BODY fixed_package IS
 
-	--DeclaraÃ§Ã£o das funcoes auxiliares do pacote fixed_package
+	-- Declaracao das funcoes auxiliares do pacote fixed_package
 --------------------------------------------------------------
-	--Retorna o maior valor entre dois argumentos
+	-- Retorna o maior valor entre dois argumentos
 
 	FUNCTION MAXIMUM(arg_L, arg_R: integer) RETURN INTEGER IS
 		VARIABLE maior : INTEGER;
@@ -68,9 +68,9 @@ PACKAGE BODY fixed_package IS
 	--Retorna o complemento de 1 do argumento
 
 	FUNCTION COMP1_FIXED(arg_L: FIXED) RETURN FIXED IS
-		VARIABLE cpl : FIXED(arg_L'LENGTH-1 DOWNTO 0);
+		VARIABLE cpl : FIXED(arg_L'RANGE);
 	BEGIN
-		FOR i IN 0 TO arg_L'LENGTH-1 LOOP
+		FOR i IN arg_L'RANGE LOOP
 			cpl(i) := NOT arg_L(i);
 		END LOOP;
 	
@@ -82,12 +82,15 @@ PACKAGE BODY fixed_package IS
 
 	FUNCTION ADD_SUB_FIXED(arg_L, arg_R: FIXED; c: bit) RETURN FIXED IS
 		VARIABLE v : bit := c;
-		VARIABLE s : FIXED(arg_L'LENGTH-1 DOWNTO 0);
+		VARIABLE max: INTEGER := MAXIMUM(arg_L'HIGH, arg_R'HIGH);
+		VARIABLE min: INTEGER := MINIMUM(arg_L'LOW, arg_R'LOW);
+		VARIABLE arg_L_ext, arg_R_ext, s: FIXED(max downto min);
 	BEGIN
-		FOR i IN 0 TO arg_L'LENGTH-1 LOOP
-	
-			s(i) := arg_L(i) XOR arg_R(i) XOR v;
-			v    := (arg_L(i) AND arg_R(i)) OR (v AND (arg_L(i) OR arg_R(i)));
+		arg_L_ext := (max DOWNTO arg_L'HIGH+1 => '0') & arg_L & (arg_L'LOW-1 DOWNTO min => '0');
+		arg_R_ext := (max DOWNTO arg_R'HIGH+1 => '0') & arg_R & (arg_R'LOW-1 DOWNTO min => '0');
+		FOR i IN arg_L_ext'RANGE LOOP
+			s(i) := arg_L_ext(i) XOR arg_R_ext(i) XOR v;
+			v    := (arg_L_ext(i) AND arg_R_ext(i)) OR (v AND (arg_L_ext(i) OR arg_R_ext(i)));
 		END LOOP;
 		RETURN s;
 	
@@ -107,7 +110,7 @@ PACKAGE BODY fixed_package IS
 		-- Variaveis para armazenamento dos dados de entrada e de saida no formato bit_vector
 		variable a, b, p: bit_vector(m+n-1 downto 0);
 	
-		--Primeiro criamos um tipo ?matrix?
+		--Primeiro criamos um tipo matrix
 		type matrix is array (natural range <>, natural range <>) of bit;
 
 		--Depois criamos as matrizes de interconexao:
@@ -235,7 +238,9 @@ PACKAGE BODY fixed_package IS
 	-- Retorna a soma de dois pontos fixos
 
 	FUNCTION "+"(arg_L, arg_R: fixed) RETURN fixed IS
-		VARIABLE soma : FIXED(MAX_IND DOWNTO MIN_IND);
+		VARIABLE max: INTEGER := MAXIMUM(arg_L'HIGH, arg_R'HIGH);
+		VARIABLE min: INTEGER := MINIMUM(arg_L'LOW, arg_R'LOW);
+		VARIABLE soma: FIXED(max downto min);
 	BEGIN
 		soma := ADD_SUB_FIXED(arg_L, arg_R, '0');
 		RETURN soma;
@@ -295,50 +300,21 @@ PACKAGE BODY fixed_package IS
 --------------------------------------------------------------
 	-- Retorna a multiplicaÃ§Ã£o de dois pontos fixos
 
-	FUNCTION "*"(arg_L, arg_R: FIXED) RETURN FIXED IS                        
-
-		VARIABLE arg_L_ext : FIXED(2*arg_L'length-2 DOWNTO 0);   --Cria um vetor extendido     
-		VARIABLE arg_R_ext : FIXED(2*arg_R'length-2 DOWNTO 0);   --Cria um vetor extendido 
-		
-		VARIABLE Resultado,Mult,Comp1,Comp2,Comp3 : FIXED(2*arg_L'length-2 DOWNTO 0);
-		VARIABLE zero : FIXED(2*arg_L'length-2 DOWNTO 0);
-		
+	FUNCTION "*"(arg_L, arg_R: FIXED) RETURN FIXED IS
+		CONSTANT L_LEFT: INTEGER := arg_L'LEFT;
+		CONSTANT L_RIGHT: INTEGER := arg_L'RIGHT;
+		CONSTANT R_LEFT: INTEGER := arg_R'LEFT;
+		CONSTANT R_RIGHT: INTEGER := arg_R'RIGHT;
+		CONSTANT RESULT_LEFT: INTEGER := MAXIMUM(arg_L'LEFT, arg_R'LEFT);
+		CONSTANT RESULT_RIGHT: INTEGER := MAXIMUM(arg_L'RIGHT, arg_R'RIGHT);
+		VARIABLE L01, R01: FIXED(RESULT_LEFT DOWNTO RESULT_RIGHT) := (OTHERS => '0');
 	BEGIN
-		arg_R_ext(arg_R'length-1 DOWNTO 0) := arg_R;                                   
-		arg_R_ext(arg_R_ext'length-1 DOWNTO arg_R'length) := (OTHERS => arg_R(arg_R'high));    --O restante do vetor extendido copia o valor do MSB do vetor inicial
-		arg_L_ext(arg_L'length-1 DOWNTO 0) := arg_L;
-		arg_L_ext(arg_L_ext'length-1 DOWNTO arg_L'length) := (OTHERS => arg_L(arg_L'high));    --O restante do vetor extendido copia o valor do MSB do vetor inicial
-
-		IF arg_L(arg_L'high)= '0' AND arg_R(arg_R'high) = '1' THEN   --argL < 0 e arg_R >0
-		
-			Comp1 := COMP1_FIXED(arg_R_ext);
-			Comp2 := ADD_SUB_FIXED(zero, Comp1, '1');     --faz o complemento de 2
-			Mult := MULT_FIXED(arg_L_ext,Comp2);
-			Resultado := ADD_SUB_FIXED(zero, Mult, '1');	--faz o complemento de 2 da multiplicaÃ§Ã£o para obter o resultado final
-		
-		ELSIF arg_L(arg_L'high)= '1' AND arg_R(arg_R'high) = '0' THEN   --argL > 0 e arg_R < 0
-		
-			Comp1 := COMP1_FIXED(arg_L_ext);
-			Comp2 := ADD_SUB_FIXED(zero, Comp1, '1');     --faz o complemento de 2
-			Mult := MULT_FIXED(arg_R_ext,Comp2);
-			Resultado := ADD_SUB_FIXED(zero, Mult, '1'); --faz o complemento de 2 da multiplicaÃ§Ã£o para obter o resultado final
-		
-		ELSIF arg_L(arg_L'high)= '1' AND arg_R(arg_R'high) = '1' THEN   --argL < 0 e arg_R < 0
-		
-			Comp1 := COMP1_FIXED(arg_L_ext);
-			Comp2 := ADD_SUB_FIXED(zero, Comp1, '1');   --faz o complemento de 2 de arg_L
-			Comp1 := COMP1_FIXED(arg_R_ext);
-			Comp3 := ADD_SUB_FIXED(zero, Comp1, '1');   --faz o complemento de 2 de arg_R
-			Resultado := MULT_FIXED(Comp3,Comp2);
-			
-		ELSE   --argL > 0 e arg_R > 0
-			
-			resultado := MULT_FIXED(arg_R_ext,arg_L_ext);
-		
-		END IF;
-
-		RETURN resultado;
-      END "*";
+		L01(L_LEFT DOWNTO RESULT_RIGHT) := arg_L(L_LEFT DOWNTO RESULT_RIGHT);
+		R01(R_LEFT DOWNTO RESULT_RIGHT) := arg_R(R_LEFT DOWNTO RESULT_RIGHT);
+		L01(RESULT_LEFT DOWNTO L_LEFT) := (OTHERS => arg_L(L_LEFT));
+		R01(RESULT_LEFT DOWNTO R_LEFT) := (OTHERS => arg_R(R_LEFT));
+	RETURN MULT_FIXED(L01, R01);
+	END FUNCTION;
 --------------------------------------------------------------
 	-- Transforma real em fixed
 
@@ -373,8 +349,8 @@ PACKAGE BODY fixed_package IS
 
 		VARIABLE arg_real : REAL := 0.0;
 
-		VARIABLE arg_L_fim,Comp1 : FIXED(arg_L'RANGE);
-		VARIABLE zero : FIXED(arg_L'LENGTH DOWNTO 0);
+		VARIABLE arg_L_fim, Comp1 : FIXED(arg_L'RANGE);
+		VARIABLE zero : FIXED(arg_L'RANGE);
 
 	BEGIN
 
@@ -383,7 +359,7 @@ PACKAGE BODY fixed_package IS
 			Comp1 := COMP1_FIXED(arg_L);	--faz o complemento de 1
 			arg_L_fim := ADD_SUB_FIXED(zero, Comp1, '1');	--faz o complemento de 2
 
-			FOR i IN 0 TO (arg_L_fim'LENGTH-1) LOOP
+			FOR i IN arg_L_fim'RANGE LOOP
 			IF (arg_L(i) = '1') THEN
 				arg_real := arg_real - (2.0**i);
 			END IF;
@@ -391,7 +367,7 @@ PACKAGE BODY fixed_package IS
 
 		ELSE		--Sem bit de sinal, entao Ã© positivo
 
-			FOR i IN 0 TO arg_L'LENGTH-1 LOOP
+			FOR i IN arg_L'RANGE LOOP
 			IF (arg_L(i) = '1') THEN
 				arg_real := arg_real + (2.0**i);
 			END IF;
