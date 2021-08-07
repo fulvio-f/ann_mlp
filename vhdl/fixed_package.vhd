@@ -88,9 +88,9 @@ PACKAGE BODY fixed_package IS
 	BEGIN
 		arg_L_ext := (max DOWNTO arg_L'HIGH+1 => '0') & arg_L & (arg_L'LOW-1 DOWNTO min => '0');
 		arg_R_ext := (max DOWNTO arg_R'HIGH+1 => '0') & arg_R & (arg_R'LOW-1 DOWNTO min => '0');
-		FOR i IN arg_L_ext'RANGE LOOP
+		FOR i IN arg_L_ext'REVERSE_RANGE LOOP
 			s(i) := arg_L_ext(i) XOR arg_R_ext(i) XOR v;
-			v    := (arg_L_ext(i) AND arg_R_ext(i)) OR (v AND (arg_L_ext(i) OR arg_R_ext(i)));
+			v    := (arg_L_ext(i) AND arg_R_ext(i)) OR (v AND arg_L_ext(i)) OR (v AND arg_R_ext(i));
 		END LOOP;
 		RETURN s;
 	
