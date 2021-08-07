@@ -13,7 +13,7 @@ Aluno: Guilherme Lopes Matias                Nº USP: 11234102
 Artificial Neural Network - Multilayer Perceptron
 
 
-Descrição: O projeto ann_mlp consiste na implementação em linguagem de descrição de hardware, VHDL, de um neurônio artificial, utilizando valores de entradas no formato de ponto fixo de 16 bits e utilizando como função de ativação a função sigmoide.
+Descrição: O projeto ann_mlp consiste na implementação em linguagem de descrição de hardware, VHDL, de um neurônio artificial, utilizando valores de entrada de 16 bits no formato de ponto fixo e utilizando como função de ativação a função sigmoide. A descrição do neurônio artificial seria utilizada na implementação de uma rede neural artificial do tipo perceptron multicamadas que atuaria na classificação de câncer de mama, em maligno ou benigno.
 
 
 Print da Waveform:
