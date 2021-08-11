@@ -282,12 +282,152 @@ begin
 				severity error;
 		--to_real
 		--function to_real (arg_L: fixed) return real;
-			
+
+		Q15_0a := "0000110100001101"; real1 := 3341.4;
+			report "Testing TO_REAL(""" & fixed2str(Q10_5a) & """)"
+				severity note;
+			real2 := to_real(Q10_5a);
+			assert real2 = real1 report LF & HT & "Expected "& real'image(real1) & " and obtained " & real'image(real2)
+				severity error;
+		
+		Q15_0a := "1111001011110010"; real1 := -3341.9;
+			report "Testing TO_REAL(""" & fixed2str(Q10_5a) & """)"
+				severity note;
+			real2 := to_real(Q10_5a);
+			assert int2 = int1 report LF & HT & "Expected "& real'image(real1) & " and obtained " & real'image(real2)
+				severity error;
+
 		--Aritmeticas
 		--"+"
 		--function "+"(arg_L, arg_R: fixed) return fixed;
+
+		Q15_0a := "0000000000000000"; Q15_0b := "0000000000001101"; Q15_0e := "0000000000001101";
+			report "Testing " "& fixed2str(Q15_0a) & ""+"" & fixed2str(Q15_0b) & "
+				severity note;
+			Q15_0r := Q15_0a + Q15_0b ;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;	
+		Q15_0a := "0000000000001101"; Q15_0b := "0000000000001101"; Q15_0e := "0000000000011010";
+			report "Testing " "& fixed2str(Q15_0a) & ""+"" & fixed2str(Q15_0b) & "
+				severity note;
+			Q15_0r := Q15_0a + Q15_0b ;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;	
+		Q15_0a := "0000000000001101"; Q15_0b := "1111111111110011"; Q15_0e := "0000000000000000";
+			report "Testing " "& fixed2str(Q15_0a) & ""+"" & fixed2str(Q15_0b) & "
+				severity note;
+			Q15_0r := Q15_0a + Q15_0b ;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;		
+		Q15_0a := "0000000000001101"; Q15_0b := "0000000000001101"; Q15_0e := "0000000000000000";
+			report "Testing " "& fixed2str(Q15_0a) & ""+"" & fixed2str(Q15_0b) & "
+				severity note;
+			Q15_0r := Q15_0a + Q15_0b ;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;		
+		Q15_0a := "0000000000001101"; Q15_0b := "1111111111110011"; Q15_0e := "0000000000011010";
+			report "Testing " "& fixed2str(Q15_0a) & ""+"" & fixed2str(Q15_0b) & "
+				severity note;
+			Q15_0r := Q15_0a + Q15_0b ;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;	
+		Q15_0a := "1111111111110011"; Q15_0b := "0000000000001101"; Q15_0e := "1111111111100110";
+			report "Testing " "& fixed2str(Q15_0a) & ""+"" & fixed2str(Q15_0b) & "
+				severity note;
+			Q15_0r := Q15_0a + Q15_0b ;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;	
+				
 		--function "+"(arg_L: fixed; arg_R: integer) return fixed;
+		
+		Q15_0a := "0000000000000000"; int1:= 13; Q15_0e := "0000000000001101";
+			report "Testing (""" & fixed2str(Q15_0a) & """)+(""" & integer'image(int1) & """)"
+				severity note;
+			Q15_0r := Q15_0a + int1 ;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& integer'image(int1) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;	
+				
+		Q15_0a := "0000000000001101"; int1:= 13; Q15_0e := "0000000000011010";
+			report "Testing (""" & fixed2str(Q15_0a) & """)+(""" & integer'image(int1) & """)"
+				severity note;
+			Q15_0r := Q10_5a + int1 ;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& integer'image(int1) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;		
+				
+		Q15_0a := "0000000000001101"; int1 := 65523; Q15_0e := "0000000000000000";
+			report "Testing (""" & fixed2str(Q15_0a) & """)+(""" & integer'image(int1) & """)"
+				severity note;
+			Q15_0r := Q10_5a + int1 ;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& integer'image(int1) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;	
+				
+		Q15_0a := "0000000000001101"; int1:= 13; Q15_0e := "0000000000000000";
+			report "Testing (""" & fixed2str(Q15_0a) & """)+(""" & integer'image(int1) & """)"
+				severity note;
+			Q15_0r := Q10_5a + int1 ;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& integer'image(int1) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;		
+		
+		Q15_0a := "0000000000001101";  int1 := 65523; Q15_0e := "0000000000011010";
+			report "Testing (""" & fixed2str(Q15_0a) & """)+(""" & integer'image(int1) & """)"
+				severity note;
+			Q15_0r := Q10_5a + int1 ;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& integer'image(int1) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;		
+		
+		Q15_0a := "1111111111110011"; int1:= 13; Q15_0e := "1111111111100110";
+			report "Testing (""" & fixed2str(Q15_0a) & """)+(""" & integer'image(int1) & """)"
+				severity note;
+			Q15_0r := Q10_5a + int1 ;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& integer'image(int1) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;		
+		
+		
 		--function "+"(arg_L: integer; arg_R: fixed) return fixed;
+		
+		
+		Q15_0a := "0000000000000000"; int1:= 13; Q15_0e := "0000000000001101";
+			report "Testing (""" & fixed2str(Q15_0a) & """)+(""" & integer'image(int1) & """)"
+				severity note;
+			Q15_0r := int1 + Q10_5a;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& integer'image(int1) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;	
+				
+		Q15_0a := "0000000000001101"; int1:= 13; Q15_0e := "0000000000011010";
+			report "Testing (""" & fixed2str(Q15_0a) & """)+(""" & integer'image(int1) & """)"
+				severity note;
+			Q15_0r := int1 + Q10_5a;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& integer'image(int1) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;		
+				
+		Q15_0a := "0000000000001101"; int1 := 65523; Q15_0e := "0000000000000000";
+			report "Testing (""" & fixed2str(Q15_0a) & """)+(""" & integer'image(int1) & """)"
+				severity note;
+			Q15_0r := int1 + Q10_5a;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& integer'image(int1) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;	
+				
+		Q15_0a := "0000000000001101"; int1:= 13; Q15_0e := "0000000000000000";
+			report "Testing (""" & fixed2str(Q15_0a) & """)+(""" & integer'image(int1) & """)"
+				severity note;
+			Q15_0r := int1 + Q10_5a;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& integer'image(int1) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;		
+		
+		Q15_0a := "0000000000001101";  int1 := 65523; Q15_0e := "0000000000011010";
+			report "Testing (""" & fixed2str(Q15_0a) & """)+(""" & integer'image(int1) & """)"
+				severity note;
+			Q15_0r := int1 + Q10_5a;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& integer'image(int1) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;		
+		
+		Q15_0a := "1111111111110011"; int1:= 13; Q15_0e := "1111111111100110";
+			report "Testing (""" & fixed2str(Q15_0a) & """)+(""" & integer'image(int1) & """)"
+				severity note;
+			Q15_0r := int1 + Q10_5a;
+			assert Q15_0r = Q15_0e report LF & HT & "Expected """& integer'image(int1) & """ and obtained """ & fixed2str(Q15_0r) & """"
+				severity error;	
+		
 		--function "+"(arg_L: fixed; arg_R: real) return fixed;
 		--function "+"(arg_L: real; arg_R: fixed) return fixed;
 		--"-"
