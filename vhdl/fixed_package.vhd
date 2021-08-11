@@ -220,24 +220,22 @@ PACKAGE BODY fixed_package IS
 	--Retorna a conversao de ponto fixo para inteiro
 
 	FUNCTION to_integer (arg_L: fixed) RETURN INTEGER IS
-		VARIABLE inteiro : INTEGER := 0;
+		VARIABLE inteiro : INTEGER;
 	BEGIN
 		inteiro := 0;
-		IF arg_L(arg_L'LEFT) = '0' THEN		--Se for um numero positivo			
+		IF arg_L(arg_L'HIGH) = '0' THEN		--Se for um numero positivo			
 			
-			positivo: FOR i IN arg_L'LEFT DOWNTO 0 LOOP
-			 	inteiro := inteiro + inteiro;
+			positivo: FOR i IN arg_L'HIGH-1 DOWNTO 0 LOOP
 				IF arg_L(i) = '1' THEN
-					inteiro := inteiro + 1;
+					inteiro := inteiro + 2**i;
 				END IF;
 			END LOOP positivo;
 		
 		ELSE	--Se for um numero negativo
 			
-			negativo: FOR i IN arg_L'LEFT DOWNTO 0 LOOP
-			 	inteiro := inteiro + inteiro;
+			negativo: FOR i IN arg_L'HIGH-1 DOWNTO 0 LOOP
 				IF arg_L(i) = '0' THEN
-					inteiro := inteiro + 1;
+					inteiro := inteiro + 2**i;
 				END IF;
 			END LOOP negativo;
 			inteiro := - (inteiro +1);  --coloca o sinal de negativo
@@ -309,7 +307,7 @@ PACKAGE BODY fixed_package IS
 		RETURN to_fixed(arg_L, arg_R'HIGH, arg_R'LOW) - arg_R;
 	END "-";
 --------------------------------------------------------------
-	-- Retorna a multiplicaÃ§Ã£o de dois pontos fixos
+	-- Retorna a multiplicacao de dois pontos fixos
 
 	FUNCTION "*"(arg_L, arg_R: FIXED) RETURN FIXED IS
 		CONSTANT L_LEFT: INTEGER := arg_L'LEFT;
@@ -372,37 +370,24 @@ PACKAGE BODY fixed_package IS
 	-- Transforma fixed em real
 										      
 	FUNCTION to_real (arg_L:FIXED) RETURN real IS
-
-		VARIABLE arg_real : REAL := 0.0;
-
-		VARIABLE arg_L_fim, Comp1 : FIXED(arg_L'RANGE);
-		VARIABLE zero : FIXED(arg_L'RANGE);
-
+		VARIABLE arg_real : REAL := 0.0
 	BEGIN
-
-		IF arg_L(arg_L'HIGH) = '1' THEN	--NÃºmero Ã© negativo
-
-			Comp1 := COMP1_FIXED(arg_L);	--faz o complemento de 1
-			arg_L_fim := ADD_SUB_FIXED(zero, Comp1, '1');	--faz o complemento de 2
-
-			FOR i IN arg_L_fim'RANGE LOOP
-			IF (arg_L(i) = '1') THEN
-				arg_real := arg_real - (2.0**i);
-			END IF;
+		arg_real := 0.0;
+		IF (arg_L(arg_L'LEFT)) = '0') THEN -- Se numero for positivo
+			FOR i in arg_L'LEFT -1 DOWNTO arg_'RIGHT LOOP
+				IF (arg_L(i) = '1') THEN
+					arg_real := arg_real + (2.0**i);
+				END IF;
 			END LOOP;
-
-		ELSE		--Sem bit de sinal, entao Ã© positivo
-
-			FOR i IN arg_L'RANGE LOOP
-			IF (arg_L(i) = '1') THEN
-				arg_real := arg_real + (2.0**i);
-			END IF;
-			END LOOP;
-
+		ELSE -- Se numero for negativo
+			FOR i in arg_L'LEFT -1 DOWNTO arg_'RIGHT LOOP
+				IF (arg_L(i) = '0') THEN
+					arg_real := arg_real + (2.0**i);
+				END IF;
+			END LOOP;	
 		END IF;
-
 		RETURN arg_real;
-	END to_real;						       
+	END to_real;					       
 -------------------------------------------------------------- 
 	-- Retorna ponto fixo na soma de ponto fixo e real
 
