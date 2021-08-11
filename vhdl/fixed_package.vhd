@@ -1,472 +1,445 @@
---library std;
-use std.textio.all;
---library work;
-use work.fixed_package.all;
+-- Pacote de operacoes em Ponto Fixo
+----------------------------------------------------------------------------------------------------
 
-entity fixed_package_tb is
-end entity fixed_package_tb;
+PACKAGE fixed_package IS
 
-architecture testbench of fixed_package_tb is
-	-- Auxiliary functions for testbench
-	function fixed2str(arg_L: fixed) return string is
-		variable fixed_str: string (arg_L'length downto 1) := (others => '0');
+    CONSTANT MAX_IND : INTEGER := 15;
+    CONSTANT MIN_IND : INTEGER := -15;
+    SUBTYPE fixed_range IS INTEGER RANGE MIN_IND TO MAX_IND;
+    TYPE FIXED IS ARRAY (fixed_range RANGE <>) OF BIT;
+	 
+    FUNCTION to_fixed (arg_L: INTEGER; max_range: fixed_range := MAX_IND;
+            min_range: fixed_range := 0) RETURN FIXED;
+    FUNCTION to_integer (arg_L: fixed) RETURN INTEGER;
+    FUNCTION "+"(arg_L, arg_R: fixed) RETURN FIXED;
+    FUNCTION "+"(arg_L: INTEGER; arg_R: FIXED) RETURN FIXED;
+    FUNCTION "+"(arg_L: fixed; arg_R: INTEGER) RETURN FIXED;
+    FUNCTION "-"(arg_L, arg_R: fixed) RETURN FIXED;
+    FUNCTION "*"(arg_L, arg_R: FIXED) RETURN FIXED;
+    FUNCTION "*"(arg_L: fixed; arg_R: integer) return FIXED;
+    FUNCTION "*"(arg_L: integer; arg_R: FIXED) return FIXED;
+    FUNCTION to_fixed (arg_L: real; max_range, min_range: fixed_range) RETURN FIXED;
+    FUNCTION to_real (arg_L:FIXED) RETURN real;
+    FUNCTION "+"(arg_L: FIXED; arg_R: REAL) RETURN FIXED;
+    FUNCTION "+"(arg_L: REAL; arg_R: FIXED) RETURN FIXED;
+    FUNCTION "-"(arg_L: FIXED; arg_R: REAL) RETURN FIXED;
+    FUNCTION "-"(arg_L: REAL; arg_R: FIXED) RETURN FIXED;
+    FUNCTION "*"(arg_L: FIXED; arg_R: REAL) RETURN FIXED;
+    FUNCTION "*"(arg_L: REAL; arg_R: FIXED) RETURN FIXED;
+    FUNCTION MAXIMUM(arg_L, arg_R: integer) RETURN INTEGER;
+    FUNCTION MINIMUM(arg_L, arg_R: integer) RETURN INTEGER;
+    FUNCTION COMP1_FIXED(arg_L: FIXED) RETURN FIXED;
+    FUNCTION ADD_SUB_FIXED(arg_L, arg_R: FIXED; c: bit) RETURN FIXED;
+    function MULT_FIXED (arg_L, arg_R: fixed) return fixed;
+
+END fixed_package;
+
+-- Corpo do pacote
+PACKAGE BODY fixed_package IS
+
+	-- Declaracao das funcoes auxiliares do pacote fixed_package
+--------------------------------------------------------------
+	-- Retorna o maior valor entre dois argumentos
+
+	FUNCTION MAXIMUM(arg_L, arg_R: integer) RETURN INTEGER IS
+		VARIABLE maior : INTEGER;
+	BEGIN
+		IF arg_L > arg_R THEN
+			maior := arg_L;
+		ELSE
+			maior := arg_R;
+		END IF;
+		
+		RETURN maior;
+	END MAXIMUM;
+--------------------------------------------------------------
+	--Retorna o menor valor entre dois argumentos
+
+	FUNCTION MINIMUM(arg_L, arg_R: integer) RETURN INTEGER IS
+		VARIABLE menor : INTEGER;
+	BEGIN
+		IF arg_L < arg_R THEN
+			menor := arg_L;
+		ELSE
+			menor := arg_R;
+		END IF;
+		
+		RETURN menor;
+	END MINIMUM;
+--------------------------------------------------------------
+	--Retorna o complemento de 1 do argumento
+
+	FUNCTION COMP1_FIXED(arg_L: FIXED) RETURN FIXED IS
+		VARIABLE cpl : FIXED(arg_L'RANGE);
+	BEGIN
+		FOR i IN arg_L'RANGE LOOP
+			cpl(i) := NOT arg_L(i);
+		END LOOP;
+	
+		RETURN cpl;
+	
+	END COMP1_FIXED;
+--------------------------------------------------------------
+	--Retorna a soma de dois argumentos do tipo FIXED
+
+	FUNCTION ADD_SUB_FIXED(arg_L, arg_R: FIXED; c: bit) RETURN FIXED IS
+		VARIABLE v : bit := c;
+		VARIABLE max: INTEGER := MAXIMUM(arg_L'HIGH, arg_R'HIGH);
+		VARIABLE min: INTEGER := MINIMUM(arg_L'LOW, arg_R'LOW);
+		VARIABLE arg_L_ext, arg_R_ext, s: FIXED(max downto min);
+	BEGIN
+		arg_L_ext := (max DOWNTO arg_L'HIGH+1 => '0') & arg_L & (arg_L'LOW-1 DOWNTO min => '0');
+		arg_R_ext := (max DOWNTO arg_R'HIGH+1 => '0') & arg_R & (arg_R'LOW-1 DOWNTO min => '0');
+		FOR i IN arg_L_ext'REVERSE_RANGE LOOP
+			s(i) := arg_L_ext(i) XOR arg_R_ext(i) XOR v;
+			v    := (arg_L_ext(i) AND arg_R_ext(i)) OR (v AND arg_L_ext(i)) OR (v AND arg_R_ext(i));
+		END LOOP;
+		RETURN s;
+	
+	END ADD_SUB_FIXED;
+--------------------------------------------------------------
+	--Retorna o produto entre dois argumentos
+
+	function MULT_FIXED (arg_L, arg_R: fixed) return fixed is
+		--Os valores de m e n sao obtidos dos sinais a e b a serem multiplicados.
+		constant m: integer := arg_L'length;		--Eh sempre igual a 32 para o projeto
+		constant n: integer := arg_R'length;		--Eh sempre igual a 32 para o projeto
+		alias arg_Lv : fixed(m-1 downto 0) is arg_L;
+		alias arg_Rv : fixed(n-1 downto 0) is arg_R;
+		
+		variable RESULT: fixed(arg_L'RANGE);
+			
+		-- Variaveis para armazenamento dos dados de entrada e de saida no formato bit_vector
+		variable a, b, p: bit_vector(m+n-1 downto 0);
+	
+		--Primeiro criamos um tipo matrix
+		type matrix is array (natural range <>, natural range <>) of bit;
+
+		--Depois criamos as matrizes de interconexao:
+		--Mi,j	Mij(i, j)		0 <= i <= m+n-1, 0 <= j <= m+n-1
+		variable Mij: matrix(0 to m+n-1, 0 to m+n-1);
+		--Ci,j	Cij(i, j)		0 <= i <= m+n-1, 0 <= j <= m+n
+		variable Cij: matrix (m+n-1 downto 0, m+n downto 0);
+		--Pi,j	Pij(i, j) 	0 <= i <= m+n, 0 <= j <= m+n
+		variable Pij: matrix (m+n downto 0, m+n downto 0);
+
 	begin
-		for i in arg_L'length downto 1 loop
-			if arg_L(i-1+arg_L'right) = '0' then
-				fixed_str(i) := '0';
-			else
-				fixed_str(i) := '1';
-			end if;
+		--Transferencia dos valores de arg_Rv para Lv e Rv, respectivamente:
+		transf_a: for i in arg_Lv'range loop
+			a(i) := arg_Lv(i);
 		end loop;
-		return fixed_str;
-	end function;
-	
-	function "="(arg_L, arg_R: fixed) return boolean is
-	begin
-		if (arg_L'length /= arg_R'length) then
-			report "Different size comparison" severity error;
-			return false;
-		end if;
-		
-		for i in arg_L'range loop
-			if arg_L(i) /= arg_R(i) then
-				return false;
-			end if;
+		transf_b: for i in arg_Rv'range loop
+			b(i) := arg_Rv(i);
 		end loop;
-		return true;
-	end function;
+
+		--Extensao dos bits de sinal em a e b:
+		a(m+n-1 downto m) := (others => arg_Lv(arg_Lv'left));	--(others => arg_Lv(arg_Lv'LEFT));		-- blinha(m+n-1 downto n => b('left)); para signed
+		b(m+n-1 downto n) := (others => arg_Rv(arg_Rv'left));	--(others => arg_Rv(arg_Rv'LEFT));		-- alinha(m+n-1 downto m => a('left)); para signed
+
+		--Inicializamos as matrizes de interconexao Cij e Pij:
+		--Cij(i, 0) = 0
+		initCij: for i in 0 to m+n-1 loop			-- for i in m+n-1 downto 0 loop para signed
+			Cij(i, 0) := '0';
+		end loop initCij;
+
+		--Pij(i, 0) = 0
+		initPij1: for i in 0 to m+n loop			-- for i in m+n downto 0 loop para signed / P(0,0) useless
+			Pij(i, 0) := '0';
+		end loop initPij1;
+
+		--Pij(m, i) = 0
+		initPij2: for i in 1 to m+n-1 loop
+			Pij(m, i) := '0';
+		end loop initPij2;
+
+		--Para inicializar a matriz de interconexao Mij eh necessario utilizar lacos de iteracao:
+		--Mij(i, j) = A(i)B(j)
+		Mijrow: for j in 0 to m+n-1 loop
+			Mijcol: for i in 0 to m+n-1 loop
+				Mij(i,j) := a(i) and b(j);
+			end loop Mijcol;
+		end loop Mijrow;
+
+		--Finalmente, podemos interligar os modulos de processamento.
+		--Pi,j	Pij(i, j) 	0 <= i <= m, 0 <= j <= m+n
+		Pijrow: for j in 0 to m+n-1 loop
+			Pijcol: for i in 0 to m+n-1 loop
+				Pij(i,j+1) := Pij(i+1,j) xor Mij(i,j) xor Cij(i,j);
+				Cij(i,j+1) := (Pij(i+1,j) and (Mij(i,j) or Cij(i,j))) or (Mij(i,j) and Cij(i,j));
+			end loop Pijcol;
+		end loop Pijrow;
+
+		--O resultado final p sera igual a:
+		--p(i) = Pij(0, i+1)		0 <= i <= m+n-1
+		initPi: for i in 0 to m+n-1 loop
+			p(i) := Pij(0,i+1);
+		end loop initPi;
+			
+		--RESULT(i) = p(0, i+1)		i in (p'range)
+		genR: for i in RESULT'range loop
+			RESULT(i) := p(i-2*RESULT'right);
+		end loop genR;
+
+		return RESULT;
+	end MULT_FIXED;
+--------------------------------------------------------------
+	--Retorna a conversao de inteiro para ponto fixo
+
+	FUNCTION to_fixed (arg_L: INTEGER; max_range: fixed_range := MAX_IND;
+			min_range: fixed_range := 0) RETURN FIXED IS
+		VARIABLE ponto_fixo : FIXED(max_range DOWNTO min_range);
+		VARIABLE arg_L_v: INTEGER := arg_L;
+		VARIABLE negativo: BIT; 	--Se o numero negativo o bit vale 1, se for positivo vale 0
+	BEGIN
+		
+		--Verificar se o numero e negativo, se for e necessario transformar em um array signed
+
+		IF arg_L < 0 THEN
+			negativo := '1';
+			ponto_fixo(max_range) := negativo;
+			arg_L_v := -(arg_L_v+1);
+		ELSE
+			negativo := '0';
+			ponto_fixo(max_range) := negativo;
+		END IF;
+
+		--Metodo para transformar numero inteiro em binario
+		a: FOR i IN 0 TO max_range-1 LOOP
+			IF arg_L_v mod 2 = 0 THEN
+				ponto_fixo(i) := negativo;
+			ELSE
+				ponto_fixo(i) := NOT negativo;
+			END IF;
+
+			arg_L_v := arg_L_v/2;
+		END LOOP a;
+					
+		RETURN ponto_fixo;
+	END to_fixed;
+--------------------------------------------------------------
+	--Retorna a conversao de ponto fixo para inteiro
+
+	FUNCTION to_integer (arg_L: fixed) RETURN INTEGER IS
+		VARIABLE inteiro : INTEGER;
+	BEGIN
+		inteiro := 0;
+		IF arg_L(arg_L'HIGH) = '0' THEN		--Se for um numero positivo			
+			
+			positivo: FOR i IN arg_L'HIGH-1 DOWNTO 0 LOOP
+				IF arg_L(i) = '1' THEN
+					inteiro := inteiro + 2**i;
+				END IF;
+			END LOOP positivo;
+		
+		ELSE	--Se for um numero negativo
+			
+			negativo: FOR i IN arg_L'HIGH-1 DOWNTO 0 LOOP
+				IF arg_L(i) = '0' THEN
+					inteiro := inteiro + 2**i;
+				END IF;
+			END LOOP negativo;
+			inteiro := - (inteiro +1);  --coloca o sinal de negativo
+		END IF;
+				
+		RETURN inteiro;
+	END to_integer;
+--------------------------------------------------------------
+	-- Retorna a soma de dois pontos fixos
+
+	FUNCTION "+"(arg_L, arg_R: fixed) RETURN fixed IS
+		VARIABLE max: INTEGER := MAXIMUM(arg_L'HIGH, arg_R'HIGH);
+		VARIABLE min: INTEGER := MINIMUM(arg_L'LOW, arg_R'LOW);
+		VARIABLE soma: FIXED(max downto min);
+	BEGIN
+		soma := ADD_SUB_FIXED(arg_L, arg_R, '0');
+		RETURN soma;
+	END "+";
+--------------------------------------------------------------
+	-- Retorna a subtracao de dois pontos fixos
+
+	FUNCTION "-"(arg_L, arg_R: fixed) RETURN fixed IS
+		
+		CONSTANT ind_soma_left : INTEGER := MAXIMUM(arg_L'LEFT,arg_R'LEFT); --O indice da esquerda na soma será o maior
+		CONSTANT ind_soma_right : INTEGER := MAXIMUM(arg_L'RIGHT,arg_R'RIGHT);--O indice da direita na soma será o menor
+		
+		VARIABLE subtracao, complemento, um, maior : FIXED(ind_soma_left DOWNTO ind_soma_right);
+
+	BEGIN -- Soma por complemento de 2
+		IF arg_L'HIGH <= arg_R'HIGH THEN -- Busca o complemento de 2 do menor vetor
+			maior := arg_R;
+			complemento := COMP1_FIXED(arg_L);
+		ELSE
+			maior := arg_L;
+			complemento := COMP1_FIXED(arg_R);
+		END IF;
+		um := complemento;
+		um := (0 => '1', OTHERS => '0');
+		complemento := ADD_SUB_FIXED(complemento, um, '0');
+		subtracao := ADD_SUB_FIXED(maior, complemento, '0');
+		RETURN subtracao;
+	END "-";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na soma de ponto fixo e inteiro
+
+	FUNCTION "+"(arg_L: FIXED; arg_R: INTEGER) RETURN FIXED IS
+	BEGIN
+		RETURN arg_L + to_fixed(arg_R, arg_L'HIGH, arg_L'LOW);
+	END "+";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na soma de inteiro e ponto fixo
 	
-	--alias maximum is max [integer, integer return integer];
-	--alias minimum is min [integer, integer return integer];
+	FUNCTION "+"(arg_L: INTEGER; arg_R: FIXED) RETURN FIXED IS
+	BEGIN
+		RETURN to_fixed(arg_L, arg_R'HIGH, arg_R'LOW) + arg_R;
+	END "+";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na subtracao de ponto fixo e inteiro
 
-begin
-	tester: process
-		variable read_line_OK : boolean := true;
-		variable char: character;
-		variable int1, int2: integer;
-		variable real1, real2: real;
-		variable Q15_0a, Q15_0b, Q15_0r, Q15_0e: fixed(15 downto 0);
-		variable Q10_5a, Q10_5b, Q10_5r, Q10_5e: fixed(10 downto -5);
-		variable Q5_10a, Q5_10b, Q5_10r, Q5_10e: fixed(5 downto -10);
-		variable Q0_15a, Q0_15b, Q0_15r, Q0_15e: fixed(0 downto -15);
-	begin
-		int1 := 10; int2 := 0;
-			report "Testing MAXIMUM(" & integer'image(int1) & "," & integer'image(int2) & ")"
-				severity note;
-			assert MAXIMUM(int1, int2) = int1 report LF & HT & "Expected "& integer'image(int1) & " and obtained " & integer'image(int2)
-				severity error;
-		int1 := 10; int2 := -10;
-			report "Testing MAXIMUM(" & integer'image(int1) & "," & integer'image(int2) & ")"
-				severity note;
-			assert MAXIMUM(int1, int2) = int1 report LF & HT & "Expected "& integer'image(int1) & " and obtained " & integer'image(int2)
-				severity error;
-		int1 := -10; int2 := 10;
-			report "Testing MAXIMUM(" & integer'image(int1) & "," & integer'image(int2) & ")"
-				severity note;
-			assert MAXIMUM(int1, int2) = int2 report LF & HT & "Expected "& integer'image(int2) & " and obtained " & integer'image(int1)
-				severity error;
-		int1 := 0; int2 := 10;
-			report "Testing MAXIMUM(" & integer'image(int1) & "," & integer'image(int2) & ")"
-				severity note;
-			assert MAXIMUM(int1, int2) = int2 report LF & HT & "Expected "& integer'image(int2) & " and obtained " & integer'image(int1)
-				severity error;
-		--function MINIMUM (arg_L, arg_R: integer) return integer;
-		int1 := 10; int2 := 0;
-			report "Testing MINIMUM(" & integer'image(int1) & "," & integer'image(int2) & ")"
-				severity note;
-			assert MINIMUM(int1, int2) = int2 report LF & HT & "Expected "& integer'image(int2) & " and obtained " & integer'image(int1)
-				severity error;
-		int1 := 10; int2 := -10;
-			report "Testing MINIMUM(" & integer'image(int1) & "," & integer'image(int2) & ")"
-				severity note;
-			assert MINIMUM(int1, int2) = int2 report LF & HT & "Expected "& integer'image(int2) & " and obtained " & integer'image(int1)
-				severity error;
-		int1 := -10; int2 := 10;
-			report "Testing MINIMUM(" & integer'image(int1) & "," & integer'image(int2) & ")"
-				severity note;
-			assert MINIMUM(int1, int2) = int1 report LF & HT & "Expected "& integer'image(int1) & " and obtained " & integer'image(int2)
-				severity error;
-		int1 := 0; int2 := 10;
-			report "Testing MINIMUM(" & integer'image(int1) & "," & integer'image(int2) & ")"
-				severity note;
-			assert MINIMUM(int1, int2) = int1 report LF & HT & "Expected "& integer'image(int1) & " and obtained " & integer'image(int2)
-				severity error;
-		--function COMP1_FIXED (arg_L: fixed) return fixed is 
-		Q15_0a := "0000000000001101"; Q15_0e := "1111111111110010";
-			report "Testing COMP1_FIXED(""" & fixed2str(Q15_0a) & """)"
-				severity note;
-			Q15_0r := COMP1_FIXED(Q15_0a);
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		Q15_0a := "1111111111110010"; Q15_0e := "0000000000001101";
-			report "Testing COMP1_FIXED(""" & fixed2str(Q15_0a) & """)"
-				severity note;
-			Q15_0r := COMP1_FIXED(Q15_0a);
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-				
-		--function ADD_SUB_FIXED (arg_L, arg_R: fixed; c: bit := '0') return fixed;
-		
-		Q15_0a := "0000000000000000"; Q15_0b := "0000000000001101"; Q15_0e := "0000000000001101";
-			report "Testing ADD_SUB_FIXED(""" & fixed2str(Q15_0a) & """,""" & fixed2str(Q15_0b) & """, 0)"
-				severity note;
-			Q15_0r := ADD_SUB_FIXED(Q15_0a, Q15_0b, '0');
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		Q15_0a := "0000000000001101"; Q15_0b := "0000000000001101"; Q15_0e := "0000000000011010";
-			report "Testing ADD_SUB_FIXED(""" & fixed2str(Q15_0a) & """,""" & fixed2str(Q15_0b) & """, 0)"
-				severity note;
-			Q15_0r := ADD_SUB_FIXED(Q15_0a, Q15_0b, '0');
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0r) & """ and obtained """ & fixed2str(Q15_0e) & """"
-				severity error;
-		Q15_0a := "0000000000001101"; Q15_0b := "1111111111110011"; Q15_0e := "0000000000000000";
-			report "Testing ADD_SUB_FIXED(""" & fixed2str(Q15_0a) & """,""" & fixed2str(Q15_0b) & """, 0)"
-				severity note;
-			Q15_0r := ADD_SUB_FIXED(Q15_0a, Q15_0b, '0');
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0r) & """ and obtained """ & fixed2str(Q15_0e) & """"
-				severity error;
-		Q15_0a := "0000000000001101"; Q15_0b := "0000000000001101"; Q15_0e := "0000000000000000";
-			report "Testing ADD_SUB_FIXED(""" & fixed2str(Q15_0a) & """, COMP1_FIXED(""" & fixed2str(Q15_0b) & """), 1)"
-				severity note;
-			Q15_0r := ADD_SUB_FIXED(Q15_0a, COMP1_FIXED(Q15_0b), '1');
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0r) & """ and obtained """ & fixed2str(Q15_0e) & """"
-				severity error;
-		Q15_0a := "0000000000001101"; Q15_0b := "1111111111110011"; Q15_0e := "0000000000011010";
-			report "Testing ADD_SUB_FIXED(""" & fixed2str(Q15_0a) & """, COMP1_FIXED(""" & fixed2str(Q15_0b) & """), 1)"
-				severity note;
-			Q15_0r := ADD_SUB_FIXED(Q15_0a, COMP1_FIXED(Q15_0b), '1');
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0r) & """ and obtained """ & fixed2str(Q15_0e) & """"
-				severity error;
-		Q15_0a := "1111111111110011"; Q15_0b := "0000000000001101"; Q15_0e := "1111111111100110";
-			report "Testing ADD_SUB_FIXED(""" & fixed2str(Q15_0a) & """, COMP1_FIXED(""" & fixed2str(Q15_0b) & """), 1)"
-				severity note;
-			Q15_0r := ADD_SUB_FIXED(Q15_0a, COMP1_FIXED(Q15_0b), '1');
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0r) & """ and obtained """ & fixed2str(Q15_0e) & """"
-				severity error;
-				
-		--function MULT_FIXED (arg_L, arg_R: fixed) return fixed;
-		
-		Q15_0a := "0000000000000000"; Q15_0b := "0000000000001101"; Q15_0e := "0000000000000000";
-			report "Testing MULT_FIXED(""" & fixed2str(Q15_0a) & """,""" & fixed2str(Q15_0b) & """)"
-				severity note;
-			Q15_0r := MULT_FIXED(Q15_0a, Q15_0b);
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		Q15_0a := "0000000000001101"; Q15_0b := "0000000000001101"; Q15_0e := "0000000010101001";
-			report "Testing MULT_FIXED(""" & fixed2str(Q15_0a) & """,""" & fixed2str(Q15_0b) & """)"
-				severity note;
-			Q15_0r := MULT_FIXED(Q15_0a, Q15_0b);
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		Q15_0a := "0000000000001101"; Q15_0b := "1111111111110011"; Q15_0e := "1111111101010111";
-			report "Testing MULT_FIXED(""" & fixed2str(Q15_0a) & """,""" & fixed2str(Q15_0b) & """)"
-				severity note;
-			Q15_0r := MULT_FIXED(Q15_0a, Q15_0b);
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		Q10_5a := "0000000110100001"; Q10_5b := "0000000110100000"; Q10_5e := "0001010100101101";
-			report "Testing MULT_FIXED(""" & fixed2str(Q10_5a) & """,""" & fixed2str(Q10_5b) & """)"
-				severity note;
-			Q10_5r := MULT_FIXED(Q10_5a, Q10_5b);
-			assert Q10_5r = Q10_5e report LF & HT & "Expected """& fixed2str(Q10_5e) & """ and obtained """ & fixed2str(Q10_5r) & """"
-				severity error;
-		Q10_5a := "0000000110100000"; Q10_5b := "0000000110100000"; Q10_5e := "0001010100100000";
-			report "Testing MULT_FIXED(""" & fixed2str(Q10_5a) & """,""" & fixed2str(Q10_5b) & """)"
-				severity note;
-			Q10_5r := MULT_FIXED(Q10_5a, Q10_5b);
-			assert Q10_5r = Q10_5e report LF & HT & "Expected """& fixed2str(Q10_5e) & """ and obtained """ & fixed2str(Q10_5r) & """"
-				severity error;
-		Q10_5a := "0000000110100000"; Q10_5b := "1111111001100000"; Q10_5e := "1110101011100000";
-			report "Testing MULT_FIXED(""" & fixed2str(Q10_5a) & """,""" & fixed2str(Q10_5b) & """)"
-				severity note;
-			Q10_5r := MULT_FIXED(Q10_5a, Q10_5b);
-			assert Q10_5r = Q10_5e report LF & HT & "Expected """& fixed2str(Q10_5e) & """ and obtained """ & fixed2str(Q10_5r) & """"
-				severity error;
-
-		--to_fixed
-		--function to_fixed (arg_L: integer; max_range: fixed_range := MAX_IND; min_range: fixed_range := 0) return fixed;
-		int1 := 3341; Q15_0e := "0000110100001101";
-			report "Testing TO_FIXED(" & integer'image(int1) & ")"
-				severity note;
-			Q15_0r := to_fixed(int1);
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		int1 := -3341; Q15_0e := "1111001011110011";
-			report "Testing TO_FIXED(" & integer'image(int1) & ")"
-				severity note;
-			Q15_0r := to_fixed(int1);
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		int1 := 104; Q10_5e := "0000110100000000";
-			report "Testing TO_FIXED(" & integer'image(int1) & ", 10, -5)"
-				severity note;
-			Q10_5r := to_fixed(int1, 10, -5);
-			assert Q10_5r = Q10_5e report LF & HT & "Expected """& fixed2str(Q10_5e) & """ and obtained """ & fixed2str(Q10_5r) & """"
-				severity error;
-		int1 := -105; Q10_5e := "1111001011100000";
-			report "Testing TO_FIXED(" & integer'image(int1) & ", 10, -5)"
-				severity note;
-			Q10_5r := to_fixed(int1, 10, -5);
-			assert Q10_5r = Q10_5e report LF & HT & "Expected """& fixed2str(Q10_5e) & """ and obtained """ & fixed2str(Q10_5r) & """"
-				severity error;
-		 int1 := 1; Q5_10e := "0000010000000000";
-			report "Testing TO_FIXED(" & integer'image(int1) & ", 5, -10)"
-				severity note;
-			Q5_10r := to_fixed(int1, 5, -10);
-			assert Q5_10r = Q5_10e report LF & HT & "Expected """& fixed2str(Q5_10e) & """ and obtained """ & fixed2str(Q5_10r) & """"
-				severity error;
-		--function to_fixed (arg_L: real; max_range, min_range: fixed_range) return fixed;
-		real1 := 3341.4; Q15_0e := "0000110100001101";
-			report "Testing TO_FIXED(" & real'image(real1) & ", 15, 0)"
-				severity note;
-			Q15_0r := to_fixed(real1, 15, 0);
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		real1 := -3341.9; Q15_0e := "1111001011110010";
-			report "Testing TO_FIXED(" & real'image(real1) & ", 15, 0)"
-				severity note;
-			Q15_0r := to_fixed(real1, 15, 0);
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		real1 := 104.8125; Q10_5e := "0000110100011010";
-			report "Testing TO_FIXED(" & real'image(real1) & ", 10, -5)"
-				severity note;
-			Q10_5r := to_fixed(real1, 10, -5);
-			assert Q10_5r = Q10_5e report LF & HT & "Expected """& fixed2str(Q10_5e) & """ and obtained """ & fixed2str(Q10_5r) & """"
-				severity error;
-		real1 := -104.1875; Q10_5e := "1111001011111010";
-			report "Testing TO_FIXED(" & real'image(real1) & ", 10, -5)"
-				severity note;
-			Q10_5r := to_fixed(real1, 10, -5);
-			assert Q10_5r = Q10_5e report LF & HT & "Expected """& fixed2str(Q10_5e) & """ and obtained """ & fixed2str(Q10_5r) & """"
-				severity error;
-		 real1 := 0.94921875; Q0_15e := "0111100110000000";
-			report "Testing TO_FIXED(" & real'image(real1) & ", 0, -15)"
-				severity note;
-			Q0_15r := to_fixed(real1, 0, -15);
-			assert Q0_15r = Q0_15e report LF & HT & "Expected """& fixed2str(Q0_15e) & """ and obtained """ & fixed2str(Q0_15r) & """"
-				severity error;
-		 real1 := -0.94921875; Q0_15e := "1000011010000000";
-			report "Testing TO_FIXED(" & real'image(real1) & ", 0, -15)"
-				severity note;
-			Q0_15r := to_fixed(real1, 0, -15);
-			assert Q0_15r = Q0_15e report LF & HT & "Expected """& fixed2str(Q0_15e) & """ and obtained """ & fixed2str(Q0_15r) & """"
-				severity error;
-		--to_integer
-		--function to_integer (arg_L: fixed) return integer;
-		Q15_0a := "0000110100001101"; int1 := 3341;
-			report "Testing TO_INTEGER(""" & fixed2str(Q15_0a) & """)"
-				severity note;
-			int2 := to_integer(Q15_0a);
-			assert int2 = int1 report LF & HT & "Expected "& integer'image(int1) & " and obtained " & integer'image(int2)
-				severity error;
-		Q15_0a := "1111001011110011"; int1 := -3341;
-			report "Testing TO_INTEGER(""" & fixed2str(Q15_0a) & """)"
-				severity note;
-			int2 := to_integer(Q15_0a);
-			assert int2 = int1 report LF & HT & "Expected "& integer'image(int1) & " and obtained " & integer'image(int2)
-				severity error;
-		Q10_5a := "0000110100001101"; int1 := 104;
-			report "Testing TO_INTEGER(""" & fixed2str(Q10_5a) & """)"
-				severity note;
-			int2 := to_integer(Q10_5a);
-			assert int2 = int1 report LF & HT & "Expected "& integer'image(int1) & " and obtained " & integer'image(int2)
-				severity error;
-		Q10_5a := "1111001011110011"; int1 := -105;
-			report "Testing TO_INTEGER(""" & fixed2str(Q10_5a) & """)"
-				severity note;
-			int2 := to_integer(Q10_5a);
-			assert int2 = int1 report LF & HT & "Expected "& integer'image(int1) & " and obtained " & integer'image(int2)
-				severity error;
-		Q5_10a := "0000110100001101"; int1 := 4;
-			report "Testing TO_INTEGER(""" & fixed2str(Q5_10a) & """)"
-				severity note;
-			int2 := to_integer(Q5_10a);
-			assert int2 = int1 report LF & HT & "Expected "& integer'image(int1) & " and obtained " & integer'image(int2)
-				severity error;
-		--to_real
-		--function to_real (arg_L: fixed) return real;
-
-		Q15_0a := "0000110100001101"; real1 := 3341.4;
-			report "Testing TO_REAL(""" & fixed2str(Q10_5a) & """)"
-				severity note;
-			real2 := to_real(Q10_5a);
-			assert real2 = real1 report LF & HT & "Expected "& real'image(real1) & " and obtained " & real'image(real2)
-				severity error;
-		
-		Q15_0a := "1111001011110010"; real1 := -3341.9;
-			report "Testing TO_REAL(""" & fixed2str(Q10_5a) & """)"
-				severity note;
-			real2 := to_real(Q10_5a);
-			assert int2 = int1 report LF & HT & "Expected "& real'image(real1) & " and obtained " & real'image(real2)
-				severity error;
-
-		--Aritmeticas
-		--"+"
-		--function "+"(arg_L, arg_R: fixed) return fixed;
-
-		Q15_0a := "0000000000000000"; Q15_0b := "0000000000001101"; Q15_0e := "0000000000001101";
-			report "Testing " & fixed2str(Q15_0a) & " + " & fixed2str(Q15_0b)
-				severity note;
-			Q15_0r := Q15_0a + Q15_0b ;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;	
-		Q15_0a := "0000000000001101"; Q15_0b := "0000000000001101"; Q15_0e := "0000000000011010";
-			report "Testing " & fixed2str(Q15_0a) & " + " & fixed2str(Q15_0b)
-				severity note;
-			Q15_0r := Q15_0a + Q15_0b ;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;	
-		Q15_0a := "0000000000001101"; Q15_0b := "1111111111110011"; Q15_0e := "0000000000000000";
-			report "Testing " & fixed2str(Q15_0a) & " + " & fixed2str(Q15_0b)
-				severity note;
-			Q15_0r := Q15_0a + Q15_0b ;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;		
-				
-		--function "+"(arg_L: fixed; arg_R: integer) return fixed;
-		
-		Q15_0a := "0000000000000000"; int1:= 13; Q15_0e := "0000000000001101";
-			report "Testing """ & fixed2str(Q15_0a) & """ + """ & integer'image(int1) & ""
-				severity note;
-			Q15_0r := Q15_0a + int1 ;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e)& """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;	
-				
-		Q15_0a := "0000000000001101"; int1:= 13; Q15_0e := "0000000000011010";
-			report "Testing """ & fixed2str(Q15_0a) & """ + """ & integer'image(int1) & ""
-				severity note;
-			Q15_0r := Q15_0a + int1 ;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;		
-				
-		Q15_0a := "0000000000001101"; int1 := 65523; Q15_0e := "0000000000000000";
-			report "Testing """ & fixed2str(Q15_0a) & """ + """ & integer'image(int1) & ""
-				severity note;
-			Q15_0r := Q15_0a + int1 ;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;	
-		
-		
-		--function "+"(arg_L: integer; arg_R: fixed) return fixed;
-		
-		
-		Q15_0a := "0000000000000000"; int1:= 13; Q15_0e := "0000000000001101";
-			report "Testing """ & integer'image(int1) & """ + """ & fixed2str(Q15_0a) & ""
-				severity note;
-			Q15_0r := int1 + Q15_0a;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;	
-				
-		Q15_0a := "0000000000001101"; int1:= 13; Q15_0e := "0000000000011010";
-			report "Testing """ & integer'image(int1) & """ + """ & fixed2str(Q15_0a) & ""
-				severity note;
-			Q15_0r := int1 + Q15_0a;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;		
-				
-		Q15_0a := "0000000000001101"; int1 := 65523; Q15_0e := "0000000000000000";
-			report "Testing """ & integer'image(int1) & """ + """ & fixed2str(Q15_0a) & ""
-				severity note;
-			Q15_0r := int1 + Q15_0a;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;	
-		
-		--function "+"(arg_L: fixed; arg_R: real) return fixed;
-		--function "+"(arg_L: real; arg_R: fixed) return fixed;
-		--"-"
-		--function "-"(arg_L, arg_R: fixed) return fixed;
-		--function "-"(arg_L: fixed; arg_R: integer) return fixed;
-		--function "-"(arg_L: integer; arg_R: fixed) return fixed;
-		--function "-"(arg_L: fixed; arg_R: real) return fixed;
-		--function "-"(arg_L: real; arg_R: fixed) return fixed;
-		
-		--"*"
-		--function "*"(arg_L, arg_R: fixed) return fixed;
-		
-		Q15_0a := "0000000000000000"; Q15_0b := "0000000000001101"; Q15_0e := "0000000000000000";
-			report "Testing (""" & fixed2str(Q15_0a) & """)*(""" & fixed2str(Q15_0b)  & """)"
-				severity note;
-			Q15_0r := Q15_0a * Q15_0b;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		Q15_0a := "0000000000001101"; Q15_0b := "0000000000001101"; Q15_0e := "0000000010101001";
-			report "Testing (""" & fixed2str(Q15_0a) & """)*(""" & fixed2str(Q15_0b)  & """)"
-				severity note;
-			Q15_0r := Q15_0a * Q15_0b;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		Q15_0a := "0000000000001101"; Q15_0b := "1111111111110011"; Q15_0e := "1111111101010111";
-			report "Testing (""" & fixed2str(Q15_0a) & """)*(""" & fixed2str(Q15_0b)  & """)"
-				severity note;
-			Q15_0r := Q15_0a * Q15_0b;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		Q10_5a := "0000000110100001"; Q10_5b := "0000000110100000"; Q10_5e := "0001010100101101";
-			report "Testing (""" & fixed2str(Q15_0a) & """)*(""" & fixed2str(Q15_0b)  & """)"
-				severity note;
-			Q15_0r := Q15_0a * Q15_0b;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		Q10_5a := "0000000110100000"; Q10_5b := "0000000110100000"; Q10_5e := "0001010100100000";
-			report "Testing (""" & fixed2str(Q15_0a) & """)*(""" & fixed2str(Q15_0b)  & """)"
-				severity note;
-			Q15_0r := Q15_0a * Q15_0b;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		Q10_5a := "0000000110100000"; Q10_5b := "1111111001100000"; Q10_5e := "1110101011100000";
-			report "Testing (""" & fixed2str(Q15_0a) & """)*(""" & fixed2str(Q15_0b)  & """)"
-				severity note;
-			Q15_0r := Q15_0a * Q15_0b;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		
-		--function "*"(arg_L: fixed; arg_R: integer) return fixed;
-		
-		Q15_0a := "0000000000000000"; int1 := 13; Q15_0e := "0000000000000000";
-			report "Testing (""" & fixed2str(Q15_0a) & """)*(""" & integer'image(int1)  & """)"
-				severity note;
-			Q15_0r := Q15_0a * int1;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		Q15_0a := "0000000000001101"; int1 := 13; Q15_0e := "0000000010101001";
-			report "Testing (""" & fixed2str(Q15_0a) & """)*(""" & integer'image(int1)  & """)"
-				severity note;
-			Q15_0r := Q15_0a * int1;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		Q15_0a := "0000000000001101"; int1 := 65523; Q15_0e := "1111111101010111";
-			report "Testing (""" & fixed2str(Q15_0a) & """)*(""" & integer'image(int1)  & """)"
-				severity note;
-			Q15_0r := Q15_0a * int1;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		
-		--function "*"(arg_L: integer; arg_R: fixed) return fixed;
-		
-		Q15_0a := "0000000000000000"; int1 := 13; Q15_0e := "0000000000000000";
-			report "Testing (""" &  integer'image(int1) & """)*(""" & fixed2str(Q15_0a)  & """)"
-				severity note;
-			Q15_0r := int1 * Q15_0a;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		Q15_0a := "0000000000001101"; int1 := 13; Q15_0e := "0000000010101001";
-			report "Testing (""" &  integer'image(int1) & """)*(""" & fixed2str(Q15_0a)  & """)"
-				severity note;
-			Q15_0r := int1 * Q15_0a;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-		Q15_0a := "0000000000001101"; int1 := 65523; Q15_0e := "1111111101010111";
-			report "Testing (""" &  integer'image(int1) & """)*(""" & fixed2str(Q15_0a)  & """)"
-				severity note;
-			Q15_0r := int1 * Q15_0a;
-			assert Q15_0r = Q15_0e report LF & HT & "Expected """& fixed2str(Q15_0e) & """ and obtained """ & fixed2str(Q15_0r) & """"
-				severity error;
-				
-		--function "*"(arg_L: fixed; arg_R: real) return fixed;
-		--function "*"(arg_L: real; arg_R: fixed) return fixed;
+	FUNCTION "-"(arg_L: FIXED; arg_R: INTEGER) RETURN FIXED IS
+	BEGIN
+		RETURN arg_L - to_fixed(arg_R, arg_L'HIGH, arg_L'LOW);
+	END "-";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na subtracao de inteiro e ponto fixo
 	
-		wait;
-	end process;
-		
-end testbench;
+	FUNCTION "-"(arg_L: INTEGER; arg_R: FIXED) RETURN FIXED IS
+	BEGIN
+		RETURN to_fixed(arg_L, arg_R'HIGH, arg_R'LOW) - arg_R;
+	END "-";
+--------------------------------------------------------------
+	-- Retorna a multiplicaÃ§Ã£o de dois pontos fixos
+
+	FUNCTION "*"(arg_L, arg_R: FIXED) RETURN FIXED IS
+		CONSTANT L_LEFT: INTEGER := arg_L'LEFT;
+		CONSTANT L_RIGHT: INTEGER := arg_L'RIGHT;
+		CONSTANT R_LEFT: INTEGER := arg_R'LEFT;
+		CONSTANT R_RIGHT: INTEGER := arg_R'RIGHT;
+		CONSTANT RESULT_LEFT: INTEGER := MAXIMUM(arg_L'LEFT, arg_R'LEFT);
+		CONSTANT RESULT_RIGHT: INTEGER := MAXIMUM(arg_L'RIGHT, arg_R'RIGHT);
+		VARIABLE L01, R01: FIXED(RESULT_LEFT DOWNTO RESULT_RIGHT) := (OTHERS => '0');
+	BEGIN
+		L01(L_LEFT DOWNTO RESULT_RIGHT) := arg_L(L_LEFT DOWNTO RESULT_RIGHT);
+		R01(R_LEFT DOWNTO RESULT_RIGHT) := arg_R(R_LEFT DOWNTO RESULT_RIGHT);
+		L01(RESULT_LEFT DOWNTO L_LEFT) := (OTHERS => arg_L(L_LEFT));
+		R01(RESULT_LEFT DOWNTO R_LEFT) := (OTHERS => arg_R(R_LEFT));
+	RETURN MULT_FIXED(L01, R01);
+	END FUNCTION;
+--------------------------------------------------------------
+	-- Retorna ponto fixo na multiplicação de ponto fixo e inteiro
+
+	FUNCTION "*"(arg_L: FIXED; arg_R: integer) RETURN FIXED IS
+	BEGIN
+		RETURN MULT_FIXED (arg_L, to_fixed(arg_R));
+
+	END "*";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na multiplicação de inteiro e ponto fixo
+
+	FUNCTION "*"(arg_L: integer; arg_R: FIXED) RETURN FIXED IS
+	BEGIN		
+		RETURN MULT_FIXED (to_fixed(arg_L),arg_R);
+	END "*";
+--------------------------------------------------------------
+	-- Transforma real em fixed
+
+	FUNCTION to_fixed (arg_L: real; max_range, min_range: fixed_range) RETURN FIXED IS
+		CONSTANT RESULT0: FIXED(max_range downto min_range) := (others => '0');
+		CONSTANT RESULTp1: FIXED(max_range downto min_range) := ("0111111111111111");
+		CONSTANT RESULTm1: FIXED(max_range downto min_range) := ("1000000000000000");
+		VARIABLE RESULT: FIXED(max_range downto min_range) := (others => '0');
+		VARIABLE tmp1: INTEGER := 0;
+	BEGIN
+		IF abs(arg_L) < 2.0**(min_range) THEN
+			--report "Too small." severity WARNING;
+			RETURN RESULT0;
+		END IF;
+		IF abs(arg_L) >= 2.0**(max_range) THEN
+			--report "Too big." severity WARNING;
+			RETURN RESULTp1;
+		END IF;
+		IF abs(arg_L) <= -2.0**(max_range) THEN
+			--report "Too bing." severity WARNING;
+			RETURN RESULTm1;
+		END IF;
+		tmp1 := INTEGER(arg_L*2.0**(-min_range));
+		RESULT := to_fixed(tmp1);
+		RETURN RESULT;
+	END FUNCTION;
+
+--------------------------------------------------------------
+	-- Transforma fixed em real
+										      
+	FUNCTION to_real (arg_L:FIXED) RETURN real IS
+
+		VARIABLE arg_real : REAL := 0.0;
+
+		VARIABLE arg_L_fim, Comp1 : FIXED(arg_L'RANGE);
+		VARIABLE zero : FIXED(arg_L'RANGE);
+
+	BEGIN
+
+		IF arg_L(arg_L'HIGH) = '1' THEN	--NÃºmero Ã© negativo
+
+			Comp1 := COMP1_FIXED(arg_L);	--faz o complemento de 1
+			arg_L_fim := ADD_SUB_FIXED(zero, Comp1, '1');	--faz o complemento de 2
+
+			FOR i IN arg_L_fim'RANGE LOOP
+			IF (arg_L(i) = '1') THEN
+				arg_real := arg_real - (2.0**i);
+			END IF;
+			END LOOP;
+
+		ELSE		--Sem bit de sinal, entao Ã© positivo
+
+			FOR i IN arg_L'RANGE LOOP
+			IF (arg_L(i) = '1') THEN
+				arg_real := arg_real + (2.0**i);
+			END IF;
+			END LOOP;
+
+		END IF;
+
+		RETURN arg_real;
+	END to_real;						       
+-------------------------------------------------------------- 
+	-- Retorna ponto fixo na soma de ponto fixo e real
+
+	FUNCTION "+"(arg_L: FIXED; arg_R: REAL) RETURN FIXED IS
+	BEGIN
+		RETURN arg_L + to_fixed(arg_R, arg_L'HIGH, arg_L'LOW);
+	END "+";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na soma de real e ponto fixo
+	
+	FUNCTION "+"(arg_L: REAL; arg_R: FIXED) RETURN FIXED IS
+	BEGIN
+		RETURN to_fixed(arg_L, arg_R'HIGH, arg_R'LOW) + arg_R;
+	END "+";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na subtracao de ponto fixo e real
+
+	FUNCTION "-"(arg_L: FIXED; arg_R: REAL) RETURN FIXED IS
+	BEGIN
+		RETURN arg_L - to_fixed(arg_R, arg_L'HIGH, arg_L'LOW);
+	END "-";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na subtracao de real e ponto fixo
+	
+	FUNCTION "-"(arg_L: REAL; arg_R: FIXED) RETURN FIXED IS
+	BEGIN
+		RETURN to_fixed(arg_L, arg_R'HIGH, arg_R'LOW) - arg_R;
+	END "-";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na multiplicacao de ponto fixo e real			   
+	FUNCTION "*"(arg_L: fixed; arg_R: real) RETURN FIXED IS
+	BEGIN
+		RETURN MULT_FIXED(arg_L,to_fixed(arg_R, arg_L'HIGH, arg_L'LOW));
+	END "*";
+--------------------------------------------------------------
+	-- Retorna ponto fixo na multiplicacao de real e ponto fixo
+	FUNCTION "*"(arg_L: real; arg_R: fixed) RETURN FIXED IS
+	BEGIN
+		RETURN MULT_FIXED(to_fixed(arg_L, arg_R'HIGH, arg_R'LOW),arg_R);
+	END "*";
+--------------------------------------------------------------
+END fixed_package;
