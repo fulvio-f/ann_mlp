@@ -220,22 +220,24 @@ PACKAGE BODY fixed_package IS
 	--Retorna a conversao de ponto fixo para inteiro
 
 	FUNCTION to_integer (arg_L: fixed) RETURN INTEGER IS
-		VARIABLE inteiro : INTEGER;
+		VARIABLE inteiro : INTEGER := 0;
 	BEGIN
 		inteiro := 0;
-		IF arg_L(arg_L'HIGH) = '0' THEN		--Se for um numero positivo			
+		IF arg_L(arg_L'LEFT) = '0' THEN		--Se for um numero positivo			
 			
-			positivo: FOR i IN arg_L'HIGH-1 DOWNTO 0 LOOP
+			positivo: FOR i IN arg_L'LEFT DOWNTO 0 LOOP
+			 	inteiro := inteiro + inteiro;
 				IF arg_L(i) = '1' THEN
-					inteiro := inteiro + 2**i;
+					inteiro := inteiro + 1;
 				END IF;
 			END LOOP positivo;
 		
 		ELSE	--Se for um numero negativo
 			
-			negativo: FOR i IN arg_L'HIGH-1 DOWNTO 0 LOOP
+			negativo: FOR i IN arg_L'LEFT DOWNTO 0 LOOP
+			 	inteiro := inteiro + inteiro;
 				IF arg_L(i) = '0' THEN
-					inteiro := inteiro + 2**i;
+					inteiro := inteiro + 1;
 				END IF;
 			END LOOP negativo;
 			inteiro := - (inteiro +1);  --coloca o sinal de negativo
