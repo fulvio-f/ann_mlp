@@ -370,17 +370,17 @@ PACKAGE BODY fixed_package IS
 	-- Transforma fixed em real
 										      
 	FUNCTION to_real (arg_L:FIXED) RETURN real IS
-		VARIABLE arg_real : REAL := 0.0
+		VARIABLE arg_real : REAL := 0.0;
 	BEGIN
 		arg_real := 0.0;
-		IF (arg_L(arg_L'LEFT)) = '0') THEN -- Se numero for positivo
-			FOR i in arg_L'LEFT -1 DOWNTO arg_'RIGHT LOOP
+		IF (arg_L(arg_L'LEFT) = '0') THEN -- Se numero for positivo
+			FOR i in arg_L'LEFT -1 DOWNTO arg_L'RIGHT LOOP
 				IF (arg_L(i) = '1') THEN
 					arg_real := arg_real + (2.0**i);
 				END IF;
 			END LOOP;
 		ELSE -- Se numero for negativo
-			FOR i in arg_L'LEFT -1 DOWNTO arg_'RIGHT LOOP
+			FOR i in arg_L'LEFT -1 DOWNTO arg_L'RIGHT LOOP
 				IF (arg_L(i) = '0') THEN
 					arg_real := arg_real + (2.0**i);
 				END IF;
