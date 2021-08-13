@@ -18,4 +18,4 @@ Descrição: O projeto ann_mlp consiste na implementação em linguagem de descr
 
 Print da Waveform:
 
-![image](https://user-images.githubusercontent.com/86382671/129298011-7e78a2b1-2b2c-42a9-b9c2-171606d89f05.png)
+![image](https://user-images.githubusercontent.com/86382671/129299608-444bf322-063a-438f-bd38-539be0f9a392.png)
