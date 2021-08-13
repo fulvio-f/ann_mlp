@@ -376,7 +376,7 @@ PACKAGE BODY fixed_package IS
 	BEGIN
 		arg_real := 0.0;
 		IF (arg_L(ARG_LEFT)= '0') THEN -- Se numero for positivo
-			FOR i in ARG_LEFT-1 -1 DOWNTO ARG_RIGHT LOOP
+			FOR i in ARG_LEFT-1 DOWNTO ARG_RIGHT LOOP
 				IF (arg_L(i) = '1') THEN
 					arg_real := arg_real + (2.0**i);
 				END IF;
@@ -387,10 +387,10 @@ PACKAGE BODY fixed_package IS
 					arg_real := arg_real + (2.0**i);
 				END IF;
 			END LOOP;
-			arg_real := -(arg_real+2.0**(ARG_RIGHT));;	
+			arg_real := -(arg_real+2.0**(ARG_RIGHT));
 		END IF;
 		RETURN arg_real;
-	END to_real;				       
+	END to_real;       	       
 -------------------------------------------------------------- 
 	-- Retorna ponto fixo na soma de ponto fixo e real
 
