@@ -390,7 +390,7 @@ PACKAGE BODY fixed_package IS
 			arg_real := -(arg_real+2.0**(ARG_RIGHT));
 		END IF;
 		RETURN arg_real;
-	END to_real;       	       
+	END to_real;       
 -------------------------------------------------------------- 
 	-- Retorna ponto fixo na soma de ponto fixo e real
 
