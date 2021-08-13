@@ -370,24 +370,27 @@ PACKAGE BODY fixed_package IS
 	-- Transforma fixed em real
 										      
 	FUNCTION to_real (arg_L:FIXED) RETURN real IS
+		CONSTANT ARG_LEFT: INTEGER := arg_L'LEFT;
+		CONSTANT ARG_RIGHT: INTEGER := arg_L'RIGHT;
 		VARIABLE arg_real : REAL := 0.0;
 	BEGIN
 		arg_real := 0.0;
-		IF (arg_L(arg_L'LEFT) = '0') THEN -- Se numero for positivo
-			FOR i in arg_L'LEFT -1 DOWNTO arg_L'RIGHT LOOP
+		IF (arg_L(ARG_LEFT)= '0') THEN -- Se numero for positivo
+			FOR i in ARG_LEFT-1 -1 DOWNTO ARG_RIGHT LOOP
 				IF (arg_L(i) = '1') THEN
 					arg_real := arg_real + (2.0**i);
 				END IF;
 			END LOOP;
 		ELSE -- Se numero for negativo
-			FOR i in arg_L'LEFT -1 DOWNTO arg_L'RIGHT LOOP
+			FOR i in ARG_LEFT -1 DOWNTO ARG_RIGHT LOOP
 				IF (arg_L(i) = '0') THEN
 					arg_real := arg_real + (2.0**i);
 				END IF;
-			END LOOP;	
+			END LOOP;
+			arg_real := -(arg_real+2.0**(ARG_RIGHT));;	
 		END IF;
 		RETURN arg_real;
-	END to_real;					       
+	END to_real;				       
 -------------------------------------------------------------- 
 	-- Retorna ponto fixo na soma de ponto fixo e real
 
